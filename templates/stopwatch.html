@@ -1,0 +1,130 @@
+
+
+
+
+{% extends "base.html" %}
+
+{% block title %}Stopwatch{% endblock %}
+
+{% block content %}
+<section class="stopwatch-section">
+    <h2>Stopwatch</h2>
+    <div class="stopwatch-display">
+        <span id="hours">00</span>:<span id="minutes">00</span>:<span id="seconds">00</span>.<span id="milliseconds">00</span>
+    </div>
+    <div class="stopwatch-controls">
+        <button id="startBtn" class="btn btn-primary"><i class="fas fa-play"></i> Start</button>
+        <button id="stopBtn" class="btn btn-secondary" disabled><i class="fas fa-stop"></i> Stop</button>
+        <button id="resetBtn" class="btn btn-tertiary"><i class="fas fa-redo"></i> Reset</button>
+        <button id="lapBtn" class="btn btn-quaternary"><i class="fas fa-flag"></i> Lap</button>
+    </div>
+    <div class="lap-times">
+        <h3>Lap Times</h3>
+        <ul id="lapList"></ul>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const display = {
+            hours: document.getElementById('hours'),
+            minutes: document.getElementById('minutes'),
+            seconds: document.getElementById('seconds'),
+            milliseconds: document.getElementById('milliseconds')
+        };
+        
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const lapBtn = document.getElementById('lapBtn');
+        const lapList = document.getElementById('lapList');
+        
+        let startTime;
+        let elapsedTime = 0;
+        let timerInterval;
+        let isRunning = false;
+        let lapCount = 1;
+        let lastLapTime = 0; // Initialize last lap time
+        
+        function formatTime(time) {
+            return time < 10 ? `0${time}` : time;
+        }
+        
+        function updateDisplay(time) {
+            const hours = Math.floor(time / 3600000);
+            const minutes = Math.floor((time % 3600000) / 60000);
+            const seconds = Math.floor((time % 60000) / 1000);
+            const milliseconds = Math.floor((time % 1000) / 10);
+            
+            display.hours.textContent = formatTime(hours);
+            display.minutes.textContent = formatTime(minutes);
+            display.seconds.textContent = formatTime(seconds);
+            display.milliseconds.textContent = formatTime(milliseconds);
+        }
+        
+        function startStopwatch() {
+            if (!isRunning) {
+                startTime = Date.now() - elapsedTime;
+                timerInterval = setInterval(function() {
+                    elapsedTime = Date.now() - startTime;
+                    updateDisplay(elapsedTime);
+                }, 10);
+                isRunning = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            }
+        }
+        
+        function stopStopwatch() {
+            if (isRunning) {
+                clearInterval(timerInterval);
+                isRunning = false;
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+        
+        function resetStopwatch() {
+            clearInterval(timerInterval);
+            elapsedTime = 0;
+            lastLapTime = 0; // Reset last lap time
+            updateDisplay(elapsedTime);
+            isRunning = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            lapList.innerHTML = '';
+            lapCount = 1;
+        }
+        
+        function recordLap() {
+            if (isRunning) {
+                const lapTime = document.createElement('li');
+                const currentTime = `${display.hours.textContent}:${display.minutes.textContent}:${display.seconds.textContent}.${display.milliseconds.textContent}`;
+                
+                lapTime.innerHTML = `
+                    <span class="lap-number">Lap ${lapCount}</span>
+                    <span class="lap-time">${currentTime}</span>
+                    <span class="lap-difference">+${calculateLapDifference()}</span>
+                `;
+                
+                lapList.prepend(lapTime);
+                lapCount++;
+                lastLapTime = elapsedTime;
+            }
+        }
+
+        function calculateLapDifference() {
+            if (lastLapTime === 0) return "0.00";
+            const difference = (elapsedTime - lastLapTime) / 1000;
+            return difference.toFixed(2) + "s";
+        }
+        
+        startBtn.addEventListener('click', startStopwatch);
+        stopBtn.addEventListener('click', stopStopwatch);
+        resetBtn.addEventListener('click', resetStopwatch);
+        lapBtn.addEventListener('click', recordLap);
+    });
+</script>
+{% endblock %}

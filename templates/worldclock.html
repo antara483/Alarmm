@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}World Clock{% endblock %}
+
+{% block content %}
+<section class="worldclock-section">
+    <h2>World Clock</h2>
+    
+    <div class="clock-container">
+        <div class="add-clock-form">
+            <h3>Add New Clock</h3>
+            <form id="addClockForm">
+                <div class="form-group">
+                    <label for="timezone">Select Timezone:</label>
+                    <select id="timezone" class="form-control" required>
+                        <option value="">-- Select a timezone --</option>
+                        {% for tz in timezones %}
+                        <option value="{{ tz }}">{{ tz }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="city-name">Custom Name (optional):</label>
+                    <input type="text" id="city-name" class="form-control" placeholder="e.g., New York">
+                </div>
+                <button type="submit" class="btn btn-primary">Add Clock</button>
+            </form>
+        </div>
+        
+        <div class="clocks-display">
+            <h3>Your Clocks</h3>
+            <div id="clocksList" class="clocks-grid">
+                <!-- Clocks will be added here dynamically -->
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Array to store added clocks
+        let clocks = JSON.parse(localStorage.getItem('worldClocks')) || [];
+        
+        // Function to update all clocks
+        function updateClocks() {
+            clocks.forEach(clock => {
+                const now = new Date();
+                const options = {
+                    timeZone: clock.timezone,
+                    hour12: true,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                };
+                
+                const timeString = now.toLocaleTimeString('en-US', options);
+                const dateString = now.toLocaleDateString('en-US', { 
+                    timeZone: clock.timezone,
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric' 
+                });
+                
+                const clockElement = document.getElementById(`clock-${clock.id}`);
+                if (clockElement) {
+                    clockElement.querySelector('.clock-time').textContent = timeString;
+                    clockElement.querySelector('.clock-date').textContent = dateString;
+                }
+            });
+        }
+        
+        // Function to render all clocks
+        function renderClocks() {
+            const clocksList = document.getElementById('clocksList');
+            clocksList.innerHTML = '';
+            
+            clocks.forEach(clock => {
+                const clockElement = document.createElement('div');
+                clockElement.className = 'clock-card';
+                clockElement.id = `clock-${clock.id}`;
+                
+                clockElement.innerHTML = `
+                    <div class="clock-header">
+                        <h4>${clock.name || clock.timezone.split('/')[1].replace('_', ' ')}</h4>
+                        <button class="btn btn-small btn-danger remove-clock" data-id="${clock.id}">×</button>
+                    </div>
+                    <div class="clock-time">00:00:00</div>
+                    <div class="clock-date">Loading...</div>
+                    <div class="clock-timezone">${clock.timezone}</div>
+                `;
+                
+                clocksList.appendChild(clockElement);
+            });
+            
+            updateClocks();
+        }
+        
+        // Add new clock
+        document.getElementById('addClockForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const timezone = document.getElementById('timezone').value;
+            const name = document.getElementById('city-name').value.trim();
+            
+            if (!timezone) return;
+            
+            const newClock = {
+                id: Date.now(),
+                timezone: timezone,
+                name: name
+            };
+            
+            clocks.push(newClock);
+            localStorage.setItem('worldClocks', JSON.stringify(clocks));
+            
+            renderClocks();
+            
+            // Reset form
+            this.reset();
+        });
+        
+        // Remove clock
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-clock')) {
+                const id = parseInt(e.target.getAttribute('data-id'));
+                clocks = clocks.filter(clock => clock.id !== id);
+                localStorage.setItem('worldClocks', JSON.stringify(clocks));
+                renderClocks();
+            }
+        });
+        
+        // Update clocks every second
+        renderClocks();
+        setInterval(updateClocks, 1000);
+    });
+</script>
+{% endblock %}

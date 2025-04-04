@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Alarm{% endblock %}
+
+{% block content %}
+<section class="alarm-section">
+    <h2>Alarm</h2>
+    <div class="alarm-container">
+        <div class="alarm-form">
+            <h3>Set New Alarm</h3>
+            <form method="POST">
+                <div class="form-group">
+                    <label for="alarm_time">Alarm Time</label>
+                    <input type="time" id="alarm_time" name="alarm_time" required>
+                </div>
+                <div class="form-group">
+                    <label for="label">Label (Optional)</label>
+                    <input type="text" id="label" name="label" placeholder="Wake up, Medicine, etc.">
+                </div>
+                <button type="submit" class="btn btn-primary">Set Alarm</button>
+            </form>
+        </div>
+        
+        <div class="alarm-list">
+            <h3>Your Alarms</h3>
+            {% if alarms %}
+                <ul>
+                    {% for alarm in alarms %}
+                    <li>
+                        <span class="alarm-time">{{ alarm.time }}</span>
+                        <span class="alarm-label">{{ alarm.label }}</span>
+                        <span class="alarm-status {% if alarm.active %}active{% else %}inactive{% endif %}">
+                            {% if alarm.active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No alarms set yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Set time input with current time and adjust dropdown options
+    document.addEventListener('DOMContentLoaded', function() {
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        
+        // Format as HH:MM with leading zeros
+        const formattedTime = 
+            currentHour.toString().padStart(2, '0') + ':' + 
+            currentMinute.toString().padStart(2, '0');
+        
+        // Set the default value
+        const timeInput = document.getElementById('alarm_time');
+        timeInput.value = formattedTime;
+        
+        // For browsers that support step attribute (adjusts dropdown options)
+        timeInput.step = 60; // 1 minute intervals
+        timeInput.min = formattedTime;
+    });
+
+    // Global variable to track audio instance
+    let activeAudio = null;
+    let isAlarmPlaying = false;
+
+    function checkAlarms() {
+        fetch('/api/alarm/check')
+            .then(response => response.json())
+            .then(data => {
+                if (data.triggered && !isAlarmPlaying) {
+                    // Stop any currently playing audio
+                    if (activeAudio) {
+                        activeAudio.pause();
+                        activeAudio = null;
+                    }
+                    
+                    // Create new audio instance
+                    activeAudio = new Audio("{{ url_for('static', filename='sounds/alarm.mp3') }}");
+                    activeAudio.loop = true;
+                    isAlarmPlaying = true;
+                    
+                    // Play with error handling
+                    activeAudio.play().catch(e => {
+                        console.error("Audio play failed:", e);
+                        isAlarmPlaying = false;
+                    });
+                    
+                    // Automatically stop after 1 minute (60000ms)
+                    setTimeout(() => {
+                        if (activeAudio) {
+                            activeAudio.pause();
+                            activeAudio = null;
+                            isAlarmPlaying = false;
+                        }
+                    }, 60000);
+                }
+            })
+            .catch(error => console.error('Error checking alarms:', error));
+    }
+
+    // Start checking for alarms (every second)
+    setInterval(checkAlarms, 1000);
+</script>
+{% endblock %}

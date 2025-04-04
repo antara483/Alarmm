@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block title %}Timer{% endblock %}
+
+{% block content %}
+<section class="timer-section">
+    <h2>Timer</h2>
+    <div class="timer-container">
+        <div class="timer-form">
+            <h3>Set New Timer</h3>
+            <form method="POST">
+                <div class="time-inputs">
+                    <div class="form-group">
+                        <label for="hours">Hours</label>
+                        <input type="number" id="hours" name="hours" min="0" max="23" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="minutes">Minutes</label>
+                        <input type="number" id="minutes" name="minutes" min="0" max="59" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="seconds">Seconds</label>
+                        <input type="number" id="seconds" name="seconds" min="0" max="59" value="0">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Start Timer</button>
+            </form>
+        </div>
+        
+        <div class="timer-display">
+            <h3>Active Timers</h3>
+            <div id="activeTimers">
+                {% if timers %}
+                    {% for timer in timers %}
+                    <div class="timer-item" data-end-time="{{ timer.end_time }}">
+                        <div class="timer-progress">
+                            <div class="progress-bar" style="width: 100%"></div>
+                        </div>
+                        <div class="timer-time">
+                            <span class="hours">00</span>:<span class="minutes">00</span>:<span class="seconds">00</span>
+                        </div>
+                        <button class="btn btn-small btn-secondary cancel-timer">Cancel</button>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p>No active timers.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // document.addEventListener('DOMContentLoaded', function() {
+    //     function updateTimers() {
+    //         fetch('/api/timer/status')
+    //             .then(response => response.json())
+    //             .then(data => {
+    //                 const activeTimers = document.getElementById('activeTimers');
+    //                 activeTimers.innerHTML = '';
+                    
+    //                 if (data.timers.length === 0) {
+    //                     activeTimers.innerHTML = '<p>No active timers.</p>';
+    //                     return;
+    //                 }
+                    
+    //                 data.timers.forEach(timer => {
+    //                     const timerItem = document.createElement('div');
+    //                     timerItem.className = 'timer-item';
+                        
+    //                     if (timer.expired) {
+    //                         timerItem.innerHTML = `
+    //                             <div class="timer-expired">
+    //                                 <p>Timer expired at ${new Date(timer.end_time).toLocaleTimeString()}</p>
+    //                                 <audio autoplay>
+    //                                     <source src="{{ url_for('static', filename='sounds/alarm.mp3') }}" type="audio/mpeg">
+    //                                 </audio>
+    //                             </div>
+    //                         `;
+    //                     } else {
+    //                         const totalSeconds = timer.remaining;
+    //                         const hours = Math.floor(totalSeconds / 3600);
+    //                         const minutes = Math.floor((totalSeconds % 3600) / 60);
+    //                         const seconds = Math.floor(totalSeconds % 60);
+                            
+    //                         const progressPercent = (timer.remaining / timer.initial) * 100;
+                            
+    //                         timerItem.innerHTML = `
+    //                             <div class="timer-progress">
+    //                                 <div class="progress-bar" style="width: ${progressPercent}%"></div>
+    //                             </div>
+    //                             <div class="timer-time">
+    //                                 <span class="hours">${hours.toString().padStart(2, '0')}</span>:
+    //                                 <span class="minutes">${minutes.toString().padStart(2, '0')}</span>:
+    //                                 <span class="seconds">${seconds.toString().padStart(2, '0')}</span>
+    //                             </div>
+    //                             <button class="btn btn-small btn-secondary cancel-timer">Cancel</button>
+    //                              <input type="hidden" class="initial-time" value="${totalSeconds}">
+    //                         `;
+    //                     }
+                        
+    //                     activeTimers.appendChild(timerItem);
+    //                 });
+    //             });
+    //     }
+    //     document.addEventListener('click', function(e) {
+    //         if (e.target.classList.contains('cancel-timer')) {
+    //             const timerItem = e.target.closest('.timer-item');
+    //             const timerIndex = Array.from(document.querySelectorAll('.timer-item')).indexOf(timerItem);
+                
+    //             fetch('/api/timer/cancel', {
+    //                 method: 'POST',
+    //                 headers: {
+    //                     'Content-Type': 'application/json',
+    //                 },
+    //                 body: JSON.stringify({ index: timerIndex })
+    //             }).then(() => updateTimers()); // Refresh the timer list
+    //         }
+    //     });
+    //     // Update timers every second
+    //     setInterval(updateTimers, 1000);
+    //     updateTimers();
+        
+    //     // Form validation
+    //     const form = document.querySelector('.timer-form form');
+    //     form.addEventListener('submit', function(e) {
+    //         const hours = parseInt(form.hours.value) || 0;
+    //         const minutes = parseInt(form.minutes.value) || 0;
+    //         const seconds = parseInt(form.seconds.value) || 0;
+            
+    //         if (hours === 0 && minutes === 0 && seconds === 0) {
+    //             e.preventDefault();
+    //             alert('Please set a time greater than 0.');
+    //         }
+    //     });
+    // });
+    document.addEventListener('DOMContentLoaded', function() {
+        // Global variable to track active alarm audio
+        let activeAlarm = null;
+
+        function stopAlarm() {
+            if (activeAlarm) {
+                activeAlarm.pause();
+                activeAlarm = null;
+            }
+        }
+
+        function updateTimers() {
+            fetch('/api/timer/status')
+                .then(response => response.json())
+                .then(data => {
+                    const activeTimers = document.getElementById('activeTimers');
+                    activeTimers.innerHTML = '';
+                    
+                    if (data.timers.length === 0) {
+                        activeTimers.innerHTML = '<p>No active timers.</p>';
+                        return;
+                    }
+                    
+                    data.timers.forEach(timer => {
+                        const timerItem = document.createElement('div');
+                        timerItem.className = 'timer-item';
+                        
+                        if (timer.expired) {
+                            timerItem.innerHTML = `
+                                <div class="timer-expired">
+                                    <p>Timer expired at ${new Date(timer.end_time).toLocaleTimeString()}</p>
+                                    <audio id="expired-alarm" loop>
+                                        <source src="{{ url_for('static', filename='sounds/alarm.mp3') }}" type="audio/mpeg">
+                                    </audio>
+                                    <button class="btn btn-small btn-primary stop-alarm">Stop Alarm</button>
+                                </div>
+                            `;
+                            
+                            // Play alarm for 15 seconds
+                            const alarmAudio = new Audio("{{ url_for('static', filename='sounds/alarm.mp3') }}");
+                            alarmAudio.loop = true;
+                            activeAlarm = alarmAudio;
+                            
+                            alarmAudio.play().catch(e => console.error("Audio error:", e));
+                            
+                            // Stop after 15 seconds
+                            setTimeout(stopAlarm, 15000);
+                        } else {
+                            const totalSeconds = timer.remaining;
+                            const hours = Math.floor(totalSeconds / 3600);
+                            const minutes = Math.floor((totalSeconds % 3600) / 60);
+                            const seconds = Math.floor(totalSeconds % 60);
+                            
+                            const progressPercent = (timer.remaining / timer.initial) * 100;
+                            
+                            timerItem.innerHTML = `
+                                <div class="timer-progress">
+                                    <div class="progress-bar" style="width: ${progressPercent}%"></div>
+                                </div>
+                                <div class="timer-time">
+                                    <span class="hours">${hours.toString().padStart(2, '0')}</span>:
+                                    <span class="minutes">${minutes.toString().padStart(2, '0')}</span>:
+                                    <span class="seconds">${seconds.toString().padStart(2, '0')}</span>
+                                </div>
+                                <button class="btn btn-small btn-secondary cancel-timer">Cancel</button>
+                                <input type="hidden" class="initial-time" value="${totalSeconds}">
+                            `;
+                        }
+                        
+                        activeTimers.appendChild(timerItem);
+                    });
+                });
+        }
+
+        // Handle cancel timer button
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('cancel-timer')) {
+                const timerItem = e.target.closest('.timer-item');
+                const timerIndex = Array.from(document.querySelectorAll('.timer-item')).indexOf(timerItem);
+                
+                fetch('/api/timer/cancel', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ index: timerIndex })
+                }).then(() => updateTimers());
+            }
+            
+            // Handle stop alarm button
+            if (e.target.classList.contains('stop-alarm')) {
+                stopAlarm();
+                updateTimers(); // Refresh the display
+            }
+        });
+
+        // Update timers every second
+        setInterval(updateTimers, 1000);
+        updateTimers();
+        
+        // Form validation
+        const form = document.querySelector('.timer-form form');
+        form.addEventListener('submit', function(e) {
+            const hours = parseInt(form.hours.value) || 0;
+            const minutes = parseInt(form.minutes.value) || 0;
+            const seconds = parseInt(form.seconds.value) || 0;
+            
+            if (hours === 0 && minutes === 0 && seconds === 0) {
+                e.preventDefault();
+                alert('Please set a time greater than 0.');
+            }
+        });
+    });
+</script>
+{% endblock %}
